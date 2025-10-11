@@ -963,6 +963,17 @@
                         <div id="dbStatus" class="status">正在連接...</div>
                     </div>
 
+                    <!-- 區域管理 -->
+                    <div class="section">
+                        <div class="section-title">🗺️ 區域管理</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button id="exportRegionsBtn" style="background: #17a2b8;">📥 匯出區域</button>
+                            <button id="importRegionsBtn" style="background: #28a745;">📤 匯入區域</button>
+                        </div>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                        <p style="margin-top: 10px; font-size: 0.85em; color: #666;">備份或還原熱力圖區域設定</p>
+                    </div>
+
                     <!-- 進階設定(需密碼) -->
                     <div class="section">
                         <div class="section-title">🔧 進階設定</div>

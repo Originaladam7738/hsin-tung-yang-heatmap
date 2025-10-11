@@ -48,6 +48,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('cancelDrawingBtn').addEventListener('click', cancelDrawing);
     document.getElementById('clearRegionsBtn').addEventListener('click', clearAllRegions);
 
+    // 匯出/匯入事件
+    document.getElementById('exportRegionsBtn').addEventListener('click', exportRegionsToJSON);
+    document.getElementById('importRegionsBtn').addEventListener('click', () => {
+        document.getElementById('importFileInput').click();
+    });
+    document.getElementById('importFileInput').addEventListener('change', importRegionsFromJSON);
+
     // 控制面板的播放按鈕(如果存在)
     const playTimelineBtn = document.getElementById('playTimelineBtn');
     if (playTimelineBtn) {
@@ -2602,6 +2609,164 @@ function toggleAdvancedSettings() {
     }
 }
 
+// ==================== 匯出/匯入功能 ====================
+
+// 匯出區域資料為 JSON 檔案
+function exportRegionsToJSON() {
+    if (drawnRegions.length === 0) {
+        alert('目前沒有任何區域可以匯出！');
+        return;
+    }
+
+    // 準備匯出資料
+    const exportData = {
+        version: '1.0',
+        exportTime: new Date().toISOString(),
+        regions: drawnRegions.map(region => ({
+            id: region.id,
+            areaIds: region.areaIds,
+            areaName: region.areaName,
+            areaNumber: region.areaNumber,
+            points: region.points,
+            color: region.color
+        }))
+    };
+
+    // 轉換為 JSON 字串
+    const jsonString = JSON.stringify(exportData, null, 2);
+
+    // 建立下載連結
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    // 設定檔名（包含時間戳）
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    link.download = `heatmap_regions_${timestamp}.json`;
+    link.href = url;
+
+    // 觸發下載
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // 釋放 URL
+    URL.revokeObjectURL(url);
+
+    console.log('已匯出區域資料:', exportData);
+    alert(`成功匯出 ${drawnRegions.length} 個區域！`);
+}
+
+// 匯入區域資料從 JSON 檔案
+function importRegionsFromJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            const importData = JSON.parse(e.target.result);
+
+            // 驗證資料格式
+            if (!importData.regions || !Array.isArray(importData.regions)) {
+                throw new Error('無效的 JSON 格式：缺少 regions 陣列');
+            }
+
+            // 詢問是否覆蓋現有區域
+            let shouldImport = true;
+            if (drawnRegions.length > 0) {
+                shouldImport = confirm(
+                    `目前已有 ${drawnRegions.length} 個區域。\n` +
+                    `匯入的檔案包含 ${importData.regions.length} 個區域。\n\n` +
+                    `是否要覆蓋現有區域？\n` +
+                    `點選「確定」將清除現有區域並匯入新資料\n` +
+                    `點選「取消」將取消匯入`
+                );
+            }
+
+            if (!shouldImport) {
+                event.target.value = ''; // 重置檔案輸入
+                return;
+            }
+
+            // 清除現有區域
+            drawnRegions = [];
+
+            // 匯入新區域
+            let successCount = 0;
+            let errorCount = 0;
+
+            importData.regions.forEach((region, index) => {
+                try {
+                    // 驗證必要欄位
+                    if (!region.points || !Array.isArray(region.points) || region.points.length < 3) {
+                        throw new Error(`區域 ${index + 1}: 無效的座標點`);
+                    }
+
+                    // 建立區域物件
+                    const newRegion = {
+                        id: region.id || Date.now() + index,
+                        areaIds: region.areaIds || [],
+                        areaName: region.areaName || `匯入區域 ${index + 1}`,
+                        areaNumber: region.areaNumber || '',
+                        points: region.points,
+                        color: region.color || getRandomColor()
+                    };
+
+                    drawnRegions.push(newRegion);
+
+                    // 初始化該區域的顯示狀態
+                    if (region.areaName) {
+                        regionVisibilityMap.set(region.areaName, true);
+                    }
+
+                    successCount++;
+                } catch (err) {
+                    console.error(`匯入區域 ${index + 1} 時發生錯誤:`, err);
+                    errorCount++;
+                }
+            });
+
+            // 儲存到 localStorage
+            saveRegionsToStorage();
+
+            // 重繪 canvas
+            redrawCanvas();
+
+            // 顯示結果
+            let message = `匯入完成！\n成功: ${successCount} 個區域`;
+            if (errorCount > 0) {
+                message += `\n失敗: ${errorCount} 個區域`;
+            }
+            if (importData.version) {
+                message += `\n\n檔案版本: ${importData.version}`;
+            }
+            if (importData.exportTime) {
+                const exportDate = new Date(importData.exportTime);
+                message += `\n匯出時間: ${exportDate.toLocaleString('zh-TW')}`;
+            }
+
+            alert(message);
+            console.log('已匯入區域資料:', drawnRegions);
+
+        } catch (error) {
+            console.error('匯入 JSON 時發生錯誤:', error);
+            alert(`匯入失敗：${error.message}`);
+        } finally {
+            // 重置檔案輸入
+            event.target.value = '';
+        }
+    };
+
+    reader.onerror = function() {
+        alert('讀取檔案時發生錯誤！');
+        event.target.value = '';
+    };
+
+    reader.readAsText(file);
+}
+
 // 將函數暴露到全域以便 HTML 調用
 window.deleteRegion = deleteRegion;
 window.confirmAreaSelection = confirmAreaSelection;
@@ -2609,3 +2774,5 @@ window.cancelAreaSelection = cancelAreaSelection;
 window.toggleRegionVisibility = toggleRegionVisibility;
 window.toggleRankingPanel = toggleRankingPanel;
 window.toggleAdvancedSettings = toggleAdvancedSettings;
+window.exportRegionsToJSON = exportRegionsToJSON;
+window.importRegionsFromJSON = importRegionsFromJSON;
