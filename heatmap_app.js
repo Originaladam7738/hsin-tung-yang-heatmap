@@ -317,11 +317,18 @@ async function initializeSystem() {
         // 4. 載入可用的區域列表
         await loadAvailableAreas();
 
-        // 5. 載入之前保存的區域
-        loadRegionsFromStorage();
-
-        // 6. 載入設定檔列表
+        // 5. 載入設定檔列表
         await loadConfigList();
+
+        // 6. 自動載入預設設定檔 (如果 localStorage 沒有儲存的區域)
+        const savedRegions = localStorage.getItem('heatmap_drawn_regions');
+        if (!savedRegions || JSON.parse(savedRegions).length === 0) {
+            console.log('未找到已儲存的區域,嘗試載入預設設定檔...');
+            await loadConfigFromServer('default.json', true);
+        } else {
+            // 載入之前保存的區域
+            loadRegionsFromStorage();
+        }
     } catch (error) {
         console.error('系統初始化失敗：', error);
         alert('系統初始化失敗：' + error.message);
@@ -2837,9 +2844,9 @@ function updateConfigSelect(configs) {
 }
 
 // 從伺服器載入特定設定檔
-async function loadConfigFromServer(filename) {
+async function loadConfigFromServer(filename, silent = false) {
     if (!filename) {
-        alert('請選擇要載入的設定檔');
+        if (!silent) alert('請選擇要載入的設定檔');
         return;
     }
 
@@ -2850,9 +2857,9 @@ async function loadConfigFromServer(filename) {
         if (result.success) {
             const importData = result.data;
 
-            // 詢問是否覆蓋現有區域
+            // 詢問是否覆蓋現有區域（靜默模式時跳過）
             let shouldImport = true;
-            if (drawnRegions.length > 0) {
+            if (!silent && drawnRegions.length > 0) {
                 shouldImport = confirm(
                     `目前已有 ${drawnRegions.length} 個區域。\n` +
                     `載入的設定包含 ${importData.regions.length} 個區域。\n\n` +
@@ -2889,14 +2896,16 @@ async function loadConfigFromServer(filename) {
             // 重繪 canvas
             redrawCanvas();
 
-            alert(`成功載入設定檔：${filename}\n共 ${importData.regions.length} 個區域`);
+            if (!silent) {
+                alert(`成功載入設定檔：${filename}\n共 ${importData.regions.length} 個區域`);
+            }
             console.log('已載入區域資料:', drawnRegions);
         } else {
-            alert(`載入失敗：${result.message}`);
+            if (!silent) alert(`載入失敗：${result.message}`);
         }
     } catch (error) {
         console.error('載入設定檔時發生錯誤:', error);
-        alert(`載入失敗：${error.message}`);
+        if (!silent) alert(`載入失敗：${error.message}`);
     }
 }
 
