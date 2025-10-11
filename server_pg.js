@@ -353,6 +353,142 @@ app.post('/api/test-query', async (req, res) => {
     }
 });
 
+// ==================== 區域設定檔管理 API ====================
+
+const fs = require('fs').promises;
+const path = require('path');
+
+const REGION_CONFIGS_DIR = path.join(__dirname, 'region_configs');
+
+// 確保目錄存在
+async function ensureConfigDir() {
+    try {
+        await fs.access(REGION_CONFIGS_DIR);
+    } catch {
+        await fs.mkdir(REGION_CONFIGS_DIR, { recursive: true });
+    }
+}
+
+// 儲存區域設定檔 API
+app.post('/api/region-configs', async (req, res) => {
+    try {
+        await ensureConfigDir();
+
+        const { filename, data } = req.body;
+
+        if (!filename || !data) {
+            return res.json({
+                success: false,
+                message: '缺少檔案名稱或資料'
+            });
+        }
+
+        // 確保檔名安全
+        const safeFilename = filename.replace(/[^a-zA-Z0-9_\-]/g, '_') + '.json';
+        const filePath = path.join(REGION_CONFIGS_DIR, safeFilename);
+
+        await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+        res.json({
+            success: true,
+            message: '設定檔已儲存',
+            filename: safeFilename
+        });
+
+    } catch (error) {
+        console.error('儲存設定檔錯誤：', error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// 取得所有設定檔列表 API
+app.get('/api/region-configs', async (req, res) => {
+    try {
+        await ensureConfigDir();
+
+        const files = await fs.readdir(REGION_CONFIGS_DIR);
+        const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+        const configs = await Promise.all(jsonFiles.map(async (filename) => {
+            const filePath = path.join(REGION_CONFIGS_DIR, filename);
+            const stats = await fs.stat(filePath);
+            const content = await fs.readFile(filePath, 'utf8');
+            const data = JSON.parse(content);
+
+            return {
+                filename,
+                exportTime: data.exportTime,
+                regionCount: data.regions?.length || 0,
+                modifiedTime: stats.mtime,
+                size: stats.size
+            };
+        }));
+
+        // 按修改時間排序（最新的在前）
+        configs.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
+
+        res.json({
+            success: true,
+            configs
+        });
+
+    } catch (error) {
+        console.error('讀取設定檔列表錯誤：', error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// 讀取特定設定檔 API
+app.get('/api/region-configs/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(REGION_CONFIGS_DIR, filename);
+
+        const content = await fs.readFile(filePath, 'utf8');
+        const data = JSON.parse(content);
+
+        res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('讀取設定檔錯誤：', error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// 刪除設定檔 API
+app.delete('/api/region-configs/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(REGION_CONFIGS_DIR, filename);
+
+        await fs.unlink(filePath);
+
+        res.json({
+            success: true,
+            message: '設定檔已刪除'
+        });
+
+    } catch (error) {
+        console.error('刪除設定檔錯誤：', error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
 // 啟動伺服器
 app.listen(PORT, () => {
     console.log(`伺服器運行在 http://localhost:${PORT}`);

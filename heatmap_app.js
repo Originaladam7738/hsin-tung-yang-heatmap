@@ -319,6 +319,9 @@ async function initializeSystem() {
 
         // 5. 載入之前保存的區域
         loadRegionsFromStorage();
+
+        // 6. 載入設定檔列表
+        await loadConfigList();
     } catch (error) {
         console.error('系統初始化失敗：', error);
         alert('系統初始化失敗：' + error.message);
@@ -2734,6 +2737,12 @@ function importRegionsFromJSON(event) {
             // 重繪 canvas
             redrawCanvas();
 
+            // 儲存到伺服器
+            const filename = file.name.replace('.json', '');
+            saveConfigToServer(filename, importData).then(() => {
+                loadConfigList(); // 刷新設定檔列表
+            });
+
             // 顯示結果
             let message = `匯入完成！\n成功: ${successCount} 個區域`;
             if (errorCount > 0) {
@@ -2767,6 +2776,130 @@ function importRegionsFromJSON(event) {
     reader.readAsText(file);
 }
 
+// ==================== 設定檔管理功能 ====================
+
+// 儲存設定到伺服器
+async function saveConfigToServer(filename, data) {
+    try {
+        const response = await fetch(`${API_BASE}/region-configs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename, data })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('設定檔已儲存到伺服器:', result.filename);
+            return result.filename;
+        } else {
+            console.error('儲存設定檔失敗:', result.message);
+            return null;
+        }
+    } catch (error) {
+        console.error('儲存設定檔時發生錯誤:', error);
+        return null;
+    }
+}
+
+// 載入設定檔列表
+async function loadConfigList() {
+    try {
+        const response = await fetch(`${API_BASE}/region-configs`);
+        const result = await response.json();
+
+        if (result.success) {
+            updateConfigSelect(result.configs);
+        }
+    } catch (error) {
+        console.error('載入設定檔列表時發生錯誤:', error);
+    }
+}
+
+// 更新設定檔下拉選單
+function updateConfigSelect(configs) {
+    const select = document.getElementById('configFileSelect');
+    if (!select) return;
+
+    // 清空現有選項
+    select.innerHTML = '<option value="">-- 選擇設定檔 --</option>';
+
+    // 加入設定檔選項
+    configs.forEach(config => {
+        const option = document.createElement('option');
+        option.value = config.filename;
+        const date = new Date(config.exportTime || config.modifiedTime);
+        option.textContent = `${config.filename.replace('.json', '')} (${config.regionCount} 個區域, ${date.toLocaleString('zh-TW')})`;
+        select.appendChild(option);
+    });
+}
+
+// 從伺服器載入特定設定檔
+async function loadConfigFromServer(filename) {
+    if (!filename) {
+        alert('請選擇要載入的設定檔');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/region-configs/${filename}`);
+        const result = await response.json();
+
+        if (result.success) {
+            const importData = result.data;
+
+            // 詢問是否覆蓋現有區域
+            let shouldImport = true;
+            if (drawnRegions.length > 0) {
+                shouldImport = confirm(
+                    `目前已有 ${drawnRegions.length} 個區域。\n` +
+                    `載入的設定包含 ${importData.regions.length} 個區域。\n\n` +
+                    `是否要覆蓋現有區域？`
+                );
+            }
+
+            if (!shouldImport) return;
+
+            // 清除現有區域
+            drawnRegions = [];
+
+            // 匯入區域
+            importData.regions.forEach((region, index) => {
+                const newRegion = {
+                    id: region.id || Date.now() + index,
+                    areaIds: region.areaIds || [],
+                    areaName: region.areaName || `區域 ${index + 1}`,
+                    areaNumber: region.areaNumber || '',
+                    points: region.points,
+                    color: region.color || getRandomColor()
+                };
+
+                drawnRegions.push(newRegion);
+
+                if (region.areaName) {
+                    regionVisibilityMap.set(region.areaName, true);
+                }
+            });
+
+            // 儲存到 localStorage
+            saveRegionsToStorage();
+
+            // 重繪 canvas
+            redrawCanvas();
+
+            alert(`成功載入設定檔：${filename}\n共 ${importData.regions.length} 個區域`);
+            console.log('已載入區域資料:', drawnRegions);
+        } else {
+            alert(`載入失敗：${result.message}`);
+        }
+    } catch (error) {
+        console.error('載入設定檔時發生錯誤:', error);
+        alert(`載入失敗：${error.message}`);
+    }
+}
+
 // 將函數暴露到全域以便 HTML 調用
 window.deleteRegion = deleteRegion;
 window.confirmAreaSelection = confirmAreaSelection;
@@ -2776,3 +2909,5 @@ window.toggleRankingPanel = toggleRankingPanel;
 window.toggleAdvancedSettings = toggleAdvancedSettings;
 window.exportRegionsToJSON = exportRegionsToJSON;
 window.importRegionsFromJSON = importRegionsFromJSON;
+window.loadConfigFromServer = loadConfigFromServer;
+window.loadConfigList = loadConfigList;

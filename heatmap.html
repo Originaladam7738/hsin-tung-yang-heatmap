@@ -966,6 +966,19 @@
                     <!-- 區域管理 -->
                     <div class="section">
                         <div class="section-title">🗺️ 區域管理</div>
+
+                        <!-- 載入已儲存的設定 -->
+                        <div class="input-group">
+                            <label>載入設定檔</label>
+                            <select id="configFileSelect" style="width: 100%;">
+                                <option value="">-- 選擇設定檔 --</option>
+                            </select>
+                        </div>
+                        <button id="loadConfigBtn" style="background: #6c757d; margin-bottom: 15px;" onclick="loadConfigFromServer(document.getElementById('configFileSelect').value)">
+                            📂 載入選取的設定
+                        </button>
+
+                        <!-- 匯出/匯入按鈕 -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <button id="exportRegionsBtn" style="background: #17a2b8;">📥 匯出區域</button>
                             <button id="importRegionsBtn" style="background: #28a745;">📤 匯入區域</button>
