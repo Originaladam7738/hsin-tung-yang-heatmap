@@ -1,6 +1,6 @@
 // 全域變數
-const IMAGE_PATH = '/平面圖.png';  // 改為使用 PNG 圖片
-const API_BASE = 'http://localhost:3000/api';
+const IMAGE_PATH = './平面圖.png';  // 改為使用 PNG 圖片
+const API_BASE = `${window.location.origin}/api`;  // 動態使用當前瀏覽器網址
 const SCALE_FACTOR = 0.7; // 底圖縮放比例（0.7 = 70%）
 
 let canvas = null;
@@ -496,6 +496,16 @@ async function loadImageFloorplan() {
                 container.classList.add('loaded');
 
                 console.log(`平面圖載入成功: ${IMAGE_PATH} (${img.width}x${img.height})`);
+
+                // 載入完成後,如果有儲存的區域,需要重繪以顯示它們
+                // 使用 setTimeout 確保在下一個事件循環中執行,讓 loadRegionsFromStorage 先完成
+                setTimeout(() => {
+                    if (drawnRegions.length > 0) {
+                        console.log('重繪已載入的區域:', drawnRegions.length, '個');
+                        redrawCanvas();
+                    }
+                }, 100);
+
                 resolve();
             } catch (error) {
                 console.error('繪製平面圖時發生錯誤：', error);
@@ -797,7 +807,11 @@ function loadRegionsFromStorage() {
             const loadedRegions = JSON.parse(saved);
             drawnRegions = loadedRegions;
 
+            console.log('從 localStorage 載入區域:', drawnRegions.length, '個');
+
             // 重繪 Canvas 以顯示載入的區域
+            // 如果圖片還沒載入完成,redrawCanvas 會返回,但沒關係
+            // 因為圖片載入完成後會再次調用 redrawCanvas
             redrawCanvas();
 
             // 更新區域列表
@@ -805,6 +819,8 @@ function loadRegionsFromStorage() {
 
             // 更新按鈕狀態
             updateGenerateButton();
+        } else {
+            console.log('localStorage 中沒有儲存的區域');
         }
     } catch (error) {
         console.error('載入區域失敗：', error);
@@ -815,14 +831,20 @@ function loadRegionsFromStorage() {
 
 // 重繪 Canvas
 function redrawCanvas() {
-    if (!floorplanImage) return;
+    if (!floorplanImage) {
+        console.log('redrawCanvas: 平面圖尚未載入,無法重繪');
+        return;
+    }
+
+    console.log('redrawCanvas: 開始重繪, 區域數量:', drawnRegions.length);
 
     // 清空並繪製底圖
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(floorplanImage, 0, 0, canvas.width, canvas.height);
 
     // 繪製已儲存的區域
-    drawnRegions.forEach(region => {
+    drawnRegions.forEach((region, index) => {
+        console.log(`  繪製區域 ${index + 1}:`, region.areaName || region.areaNumber, '點數:', region.points.length);
         drawPolygon(region.points, region.color, region.areaName || region.areaNumber);
     });
 
@@ -830,6 +852,8 @@ function redrawCanvas() {
     if (isDrawing && currentPoints.length > 0) {
         drawPolygon(currentPoints, '#667eea', null, true);
     }
+
+    console.log('redrawCanvas: 重繪完成');
 }
 
 // 繪製多邊形

@@ -57,6 +57,9 @@ npm start
 3. 開啟瀏覽器訪問：
 ```
 http://localhost:3000
+或使用伺服器 IP: http://your-server-ip:3000
+
+應用程式會自動使用當前瀏覽器的網址,無需額外配置
 ```
 
 ## 使用方法

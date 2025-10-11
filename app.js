@@ -83,7 +83,7 @@ async function connectDatabase() {
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/connect', {
+        const response = await fetch(`${window.location.origin}/api/connect`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -282,7 +282,7 @@ async function generateHeatmap() {
 
     try {
         // 取得資料
-        const response = await fetch('http://localhost:3000/api/heatmap', {
+        const response = await fetch(`${window.location.origin}/api/heatmap`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
