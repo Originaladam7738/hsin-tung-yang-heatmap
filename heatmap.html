@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新東陽熱力圖分析系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5/build/heatmap.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1em;
+        }
+
+        .canvas-section {
+            width: 100%;
+            background: #f8f9fa;
+            border-bottom: 3px solid #dee2e6;
+            position: relative;
+        }
+
+        .main-content {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-size: 0.9em;
+        }
+
+        input[type="datetime-local"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            min-height: 500px;
+            overflow: auto;
+            background: #f8f9fa;
+            display: block;
+            padding: 20px;
+        }
+
+        .canvas-container::before {
+            content: '載入平面圖中...';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 1.2em;
+            z-index: 1;
+        }
+
+        .canvas-container.loaded::before {
+            display: none;
+        }
+
+        #mainCanvas {
+            display: block;
+            border: 2px solid #dee2e6;
+            cursor: crosshair;
+            background: #ffffff;
+            margin: 0 auto;
+        }
+
+        /* heatmap.js 自動創建的 canvas 容器 */
+        #heatmapContainer {
+            position: absolute !important;
+            pointer-events: none !important;
+            z-index: 10 !important;
+            opacity: 1;
+        }
+
+        /* 地圖內的時間浮水印 */
+        .time-watermark {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(102, 126, 234, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        /* 熱力圖區域提示框 */
+        .heatmap-tooltip {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.98);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 16px;
+            z-index: 200;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            font-size: 0.9em;
+        }
+
+        .tooltip-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #667eea;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+
+        .tooltip-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .tooltip-value {
+            font-weight: bold;
+            color: #333;
+            margin-left: 10px;
+        }
+
+        .tooltip-change {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .tooltip-change.increase {
+            color: #dc3545;
+        }
+
+        .tooltip-change.decrease {
+            color: #28a745;
+        }
+
+        .tooltip-change.same {
+            color: #6c757d;
+        }
+
+        /* 地圖內的即時排名面板（右側）*/
+        .ranking-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 280px;
+            max-height: calc(100% - 20px);
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .ranking-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .ranking-header:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #65398b 100%);
+        }
+
+        .ranking-toggle-icon {
+            margin-left: auto;
+            font-size: 0.9em;
+            transition: transform 0.3s;
+        }
+
+        .ranking-panel.collapsed .ranking-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .ranking-panel.collapsed .ranking-list {
+            display: none;
+        }
+
+        /* 時間軸進度條容器 */
+        .timeline-bar-container {
+            background: white;
+            padding: 20px 30px;
+            border-top: 2px solid #dee2e6;
+        }
+
+        /* 快速設定欄 */
+        .timeline-quick-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .quick-control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .quick-control-label {
+            font-size: 0.85em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .quick-control-input {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .timeline-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .timeline-time {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timeline-progress-text {
+            font-size: 0.95em;
+            color: #666;
+        }
+
+        .timeline-slider {
+            width: 100%;
+            cursor: pointer;
+            height: 10px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .timeline-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border: none;
+        }
+
+        .timeline-slider:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .timeline-slider:disabled::-webkit-slider-thumb {
+            cursor: not-allowed;
+        }
+
+        .timeline-slider:disabled::-moz-range-thumb {
+            cursor: not-allowed;
+        }
+
+        /* 雙端點滑桿樣式 */
+        .range-slider-container {
+            position: relative;
+            width: 100%;
+            height: 40px;
+            margin-top: 10px;
+        }
+
+        .range-slider-track {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .range-slider-range {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(to right, #0066ff 0%, #ff0000 100%);
+            border-radius: 4px;
+        }
+
+        .range-slider-input {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            pointer-events: none;
+            margin: 0;
+        }
+
+        .range-slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #667eea;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .range-slider-input::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #667eea;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .range-slider-input:focus {
+            outline: none;
+        }
+
+        .range-slider-values {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .range-slider-value {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .range-slider-value-min {
+            color: #0066ff;
+            font-weight: 600;
+        }
+
+        .range-slider-value-max {
+            color: #ff0000;
+            font-weight: 600;
+        }
+
+        .ranking-list {
+            padding: 12px;
+            overflow-y: auto;
+            flex: 1;
+            max-height: 500px;
+        }
+
+        .ranking-empty {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 0.85em;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 6px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            transition: transform 0.2s;
+        }
+
+        .ranking-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .ranking-number {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .ranking-number.rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: white;
+        }
+
+        .ranking-number.rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            color: white;
+        }
+
+        .ranking-number.rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #8B4513);
+            color: white;
+        }
+
+        .ranking-number.rank-other {
+            background: #dee2e6;
+            color: #495057;
+        }
+
+        .ranking-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ranking-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 0.95em;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ranking-value {
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .ranking-bar {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .ranking-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* 排名眼睛圖示 */
+        .ranking-eye-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            margin-left: 8px;
+            flex-shrink: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+        }
+
+        .ranking-eye-icon:hover {
+            opacity: 0.7;
+        }
+
+        .ranking-eye-icon.hidden {
+            opacity: 0.3;
+        }
+
+        .region-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .region-marker:hover {
+            background: #f5576c;
+            width: 12px;
+            height: 12px;
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .region-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .region-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .region-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .region-item-data {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 0.85em;
+        }
+
+        .region-data-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .region-data-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .region-data-value {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .region-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .region-item label {
+            margin: 0;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .statistics {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* 模態對話框 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1em;
+            max-height: 300px;
+        }
+
+        .modal-select option {
+            padding: 10px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-footer button {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        .modal-cancel {
+            background: #6c757d !important;
+        }
+
+        /* 進階設定摺疊樣式 */
+        .advanced-settings-toggle {
+            cursor: pointer;
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s;
+        }
+
+        .advanced-settings-toggle:hover {
+            background: #dee2e6;
+        }
+
+        .advanced-settings-toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .advanced-settings-toggle.collapsed .advanced-settings-toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .advanced-settings-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .advanced-settings-content.collapsed {
+            max-height: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗺️ 新東陽熱力圖分析系統</h1>
+            <p class="subtitle">基於容留時間的人流分析</p>
+        </header>
+
+        <!-- 平面圖顯示區 -->
+        <div class="canvas-section">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="mainCanvas"></canvas>
+
+                <!-- 熱力圖容器 -->
+                <div id="heatmapContainer"></div>
+
+                <!-- 時間浮水印（左上角）-->
+                <div class="time-watermark" id="timeWatermark">-</div>
+
+                <!-- 即時排名面板（右側）-->
+                <div class="ranking-panel" id="rankingPanel">
+                    <div class="ranking-header" onclick="toggleRankingPanel()">
+                        🏆 即時排名
+                        <span class="ranking-toggle-icon">▼</span>
+                    </div>
+                    <div class="ranking-list" id="rankingList">
+                        <div class="ranking-empty">播放時間軸後顯示</div>
+                    </div>
+                </div>
+
+                <!-- 熱力圖區域提示框 -->
+                <div class="heatmap-tooltip" id="heatmapTooltip"></div>
+            </div>
+
+            <!-- 時間軸進度條與快速設定（地圖下方）-->
+            <div class="timeline-bar-container" id="timelineBarContainer">
+                <!-- 播放控制按鈕 -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: center;">
+                    <button id="quickPlayBtn" style="width: auto; padding: 10px 30px; font-size: 1em;" disabled>▶ 播放</button>
+                    <button id="quickPauseBtn" style="width: auto; padding: 10px 30px; font-size: 1em; background: #6c757d;" disabled>⏸ 暫停</button>
+                    <button id="quickStopBtn" style="width: auto; padding: 10px 30px; font-size: 1em; background: #dc3545;" disabled>⏹ 停止</button>
+                    <button id="quickRefreshBtn" style="width: auto; padding: 10px 30px; font-size: 1em; background: #28a745;" disabled>🔄 刷新熱力圖</button>
+                </div>
+
+                <!-- 快速設定欄 -->
+                <div class="timeline-quick-controls">
+                    <div class="quick-control-item">
+                        <label class="quick-control-label">📅 日期區間</label>
+                        <select id="quickDateRange" class="quick-control-input">
+                            <option value="custom">自訂</option>
+                            <option value="today">今天</option>
+                            <option value="yesterday">昨天</option>
+                            <option value="last7days">最近7天</option>
+                            <option value="last30days">最近30天</option>
+                        </select>
+                    </div>
+                    <div class="quick-control-item">
+                        <label class="quick-control-label">⏰ 開始時間</label>
+                        <input type="datetime-local" id="quickStartTime" class="quick-control-input">
+                    </div>
+                    <div class="quick-control-item">
+                        <label class="quick-control-label">⏰ 結束時間</label>
+                        <input type="datetime-local" id="quickEndTime" class="quick-control-input">
+                    </div>
+                    <div class="quick-control-item">
+                        <label class="quick-control-label">⏱️ 時間區間 <span id="quickIntervalValue">30</span>分</label>
+                        <input type="range" id="quickTimeInterval" min="5" max="120" value="30" step="5" class="quick-control-input" style="padding: 0;">
+                    </div>
+                    <div class="quick-control-item">
+                        <label class="quick-control-label">⚡ 播放速度 <span id="quickSpeedValue">1000</span>ms</label>
+                        <input type="range" id="quickPlaybackSpeed" min="100" max="5000" value="1000" step="100" class="quick-control-input" style="padding: 0;">
+                    </div>
+                    <div class="quick-control-item" style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="quickShowBorders" style="width: auto;">
+                            <span style="font-size: 0.85em;">顯示框線</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="quickShowLabels" style="width: auto;">
+                            <span style="font-size: 0.85em;">顯示標籤</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 雙端點滑桿 - 熱力圖範圍 -->
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
+                    <label class="quick-control-label" style="display: block; margin-bottom: 10px;">🔥 熱力圖顯示範圍</label>
+                    <div class="range-slider-container">
+                        <div class="range-slider-track">
+                            <div class="range-slider-range" id="rangeSliderRange"></div>
+                        </div>
+                        <input type="range" id="rangeMin" class="range-slider-input" min="0" max="4000" value="0" step="10">
+                        <input type="range" id="rangeMax" class="range-slider-input" min="0" max="4000" value="1000" step="10">
+                    </div>
+                    <div class="range-slider-values">
+                        <div class="range-slider-value">
+                            <span>最小值（藍色）:</span>
+                            <span class="range-slider-value-min" id="rangeMinValue">0</span>
+                        </div>
+                        <div class="range-slider-value">
+                            <span>最大值（紅色）:</span>
+                            <span class="range-slider-value-max" id="rangeMaxValue">1000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 進度條 -->
+                <div class="timeline-info">
+                    <span class="timeline-time" id="timelineBarTime">-</span>
+                    <span class="timeline-progress-text" id="timelineBarProgress">-</span>
+                </div>
+                <input type="range" id="timelineBar" min="0" max="100" value="0" disabled class="timeline-slider">
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 控制面板 -->
+            <div class="control-panel">
+                <div class="control-grid">
+                    <!-- 資料庫連接 -->
+                    <div class="section">
+                        <div class="section-title">📊 資料庫狀態</div>
+                        <div id="dbStatus" class="status">正在連接...</div>
+                    </div>
+
+                    <!-- 進階設定(需密碼) -->
+                    <div class="section">
+                        <div class="section-title">🔧 進階設定</div>
+
+                        <!-- 進階設定摺疊按鈕 -->
+                        <div class="advanced-settings-toggle collapsed" id="advancedSettingsToggle" onclick="toggleAdvancedSettings()">
+                            <span style="font-weight: 600; color: #666;">🔒 進階功能 (需密碼)</span>
+                            <span class="advanced-settings-toggle-icon">▼</span>
+                        </div>
+
+                        <!-- 進階設定內容 -->
+                        <div class="advanced-settings-content collapsed" id="advancedSettingsContent">
+                            <!-- 繪圖工具 -->
+                            <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #dee2e6;">
+                                <h4 style="color: #667eea; margin-bottom: 10px; font-size: 0.95em;">🖊️ 繪製區域</h4>
+                                <button id="drawRegionBtn">開始繪製區域</button>
+                                <button id="finishDrawingBtn" style="display:none;">✓ 完成繪製</button>
+                                <button id="cancelDrawingBtn" style="display:none;">✗ 取消繪製</button>
+                                <button id="clearRegionsBtn">清除所有區域</button>
+
+                                <!-- 顯示選項 -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;">
+                                        <input type="checkbox" id="showRegionBorders" style="width: auto;">
+                                        <span>顯示區域框線</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="showRegionLabels" style="width: auto;">
+                                        <span>顯示區域標籤</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 熱力圖參數 -->
+                            <div>
+                                <h4 style="color: #667eea; margin-bottom: 10px; font-size: 0.95em;">🔥 熱力圖參數</h4>
+                                <div class="input-group">
+                                    <label>最小停留時間（秒）<span id="minDurationValue">10</span></label>
+                                    <input type="range" id="minDuration" min="0" max="300" value="10" step="5" style="width: 100%">
+                                    <small style="color: #666; font-size: 0.85em;">篩選掉停留時間低於此秒數的數據，避免雜訊</small>
+                                </div>
+                                <div class="input-group">
+                                    <label>最大停留時間（秒）<span id="maxDurationValue">3600</span></label>
+                                    <input type="range" id="maxDuration" min="300" max="7200" value="3600" step="60" style="width: 100%">
+                                    <small style="color: #666; font-size: 0.85em;">篩選掉停留時間高於此秒數的數據，避免異常值干擾</small>
+                                </div>
+                                <div class="input-group">
+                                    <label>熱力圖指標</label>
+                                    <select id="heatmapMetric" style="width: 100%">
+                                        <option value="totalDuration">總停留時間</option>
+                                        <option value="visitCount" selected>訪問人次</option>
+                                        <option value="avgDuration">平均停留時間</option>
+                                    </select>
+                                    <small style="color: #666; font-size: 0.85em;">選擇用於生成熱力圖的數據指標</small>
+                                </div>
+                                <div class="input-group">
+                                    <label>熱力圖半徑 <span id="heatmapRadiusValue">40</span> px</label>
+                                    <input type="range" id="heatmapRadius" min="10" max="100" value="40" step="5" style="width: 100%">
+                                    <small style="color: #666; font-size: 0.85em;">調整熱力圖的擴散範圍。較小的值讓邊界更清晰，較大的值讓顏色更平滑。</small>
+                                </div>
+                                <div class="input-group">
+                                    <label>最小值（藍色）</label>
+                                    <input type="number" id="heatmapMinValue" min="0" max="500" value="0" style="width: 100%">
+                                    <small style="color: #666; font-size: 0.85em;">低於此值顯示為藍色/透明</small>
+                                </div>
+                                <div class="input-group">
+                                    <label>最大值（紅色）</label>
+                                    <input type="number" id="heatmapMaxValue" min="1" max="10000" value="1000" style="width: 100%">
+                                    <small style="color: #666; font-size: 0.85em;">高於此值顯示為紅色。設定固定範圍可看出整天人流變化趨勢。</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 區域選擇模態對話框 -->
+    <div id="areaSelectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">選擇要綁定的區域</div>
+            <div class="modal-body">
+                <label>請選擇區域：</label>
+                <select id="areaSelect" class="modal-select" size="10">
+                    <!-- 選項會由 JavaScript 動態填入 -->
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel" onclick="cancelAreaSelection()">取消</button>
+                <button onclick="confirmAreaSelection()">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="heatmap_app.js"></script>
+</body>
+</html>

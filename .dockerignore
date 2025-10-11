@@ -1,0 +1,38 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# 開發工具
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 測試檔案
+test.html
+
+# 文檔
+README.md
+使用說明.md
+*.pdf
+
+# Python 檔案
+*.py
+__pycache__
+
+# 環境變數檔案（敏感資訊）
+.env
+.env.local
+
+# OS 檔案
+.DS_Store
+Thumbs.db
+
+# 日誌檔案
+*.log
+logs

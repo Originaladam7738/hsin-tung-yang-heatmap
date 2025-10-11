@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  heatmap-app:
+    build: .
+    container_name: heatmap-app
+    ports:
+      - "3000:3000"
+    environment:
+      # Node.js 環境
+      - NODE_ENV=production
+      - PORT=3000
+
+      # 資料庫連接配置（連接到雲端資料庫）
+      # 這些環境變數會在需要時被應用程式使用
+      - DB_HOST=iseekbidbstaging.intemotech.com
+      - DB_PORT=5404
+      - DB_NAME=postgresdb
+      - DB_USER=hsintungyang
+      - DB_PASSWORD=G7pL2vX9
+
+    restart: unless-stopped
+
+    # 健康檢查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

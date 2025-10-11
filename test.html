@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>圖片測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        canvas {
+            border: 2px solid #000;
+            display: block;
+            margin: 20px 0;
+        }
+        img {
+            border: 2px solid #00f;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>圖片載入測試</h1>
+
+    <h2>方法 1: 直接用 &lt;img&gt; 標籤</h2>
+    <img src="/平面圖.png" alt="平面圖" onload="console.log('IMG標籤載入成功')" onerror="console.error('IMG標籤載入失敗')">
+
+    <h2>方法 2: Canvas 繪製</h2>
+    <canvas id="testCanvas"></canvas>
+
+    <div id="info"></div>
+
+    <script>
+        const infoDiv = document.getElementById('info');
+        const testCanvas = document.getElementById('testCanvas');
+        const ctx = testCanvas.getContext('2d');
+
+        const img = new Image();
+        img.onload = function() {
+            console.log('Canvas 圖片載入成功！', {
+                寬度: img.width,
+                高度: img.height
+            });
+
+            testCanvas.width = img.width * 0.5;
+            testCanvas.height = img.height * 0.5;
+
+            ctx.drawImage(img, 0, 0, testCanvas.width, testCanvas.height);
+
+            infoDiv.innerHTML = `
+                <h3 style="color: green;">✓ 圖片載入成功！</h3>
+                <p>原始尺寸: ${img.width} x ${img.height}</p>
+                <p>Canvas 尺寸: ${testCanvas.width} x ${testCanvas.height}</p>
+            `;
+        };
+
+        img.onerror = function() {
+            console.error('Canvas 圖片載入失敗！');
+            infoDiv.innerHTML = '<h3 style="color: red;">✗ 圖片載入失敗！</h3>';
+        };
+
+        img.src = '/平面圖.png';
+    </script>
+</body>
+</html>
