@@ -837,6 +837,205 @@
         .advanced-settings-content.collapsed {
             max-height: 0;
         }
+
+        /* ==================== 手機版響應式設計 ==================== */
+        @media screen and (max-width: 768px) {
+            /* 標題調整 */
+            h1 {
+                font-size: 1.3em;
+            }
+
+            .subtitle {
+                font-size: 0.9em;
+            }
+
+            /* 控制面板改為單欄 */
+            .control-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            /* 減少內距 */
+            .main-content {
+                padding: 15px;
+            }
+
+            .control-panel {
+                padding: 15px;
+            }
+
+            header {
+                padding: 15px;
+            }
+
+            /* Canvas 容器調整 */
+            .canvas-container {
+                padding: 10px;
+                min-height: 300px;
+            }
+
+            #mainCanvas {
+                max-width: 100%;
+                height: auto;
+            }
+
+            /* 時間軸進度條容器 */
+            .timeline-bar-container {
+                padding: 15px;
+            }
+
+            /* 快速設定欄改為單欄 */
+            .timeline-quick-controls {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 10px;
+            }
+
+            /* 播放控制按鈕改為更小的尺寸 */
+            .timeline-bar-container > div:first-child {
+                flex-wrap: wrap;
+            }
+
+            .timeline-bar-container button {
+                width: auto !important;
+                padding: 8px 15px !important;
+                font-size: 0.9em !important;
+            }
+
+            /* 排名面板調整 */
+            .ranking-panel {
+                width: 90%;
+                max-width: 280px;
+                right: 5%;
+                top: 5px;
+            }
+
+            .ranking-list {
+                max-height: 300px;
+            }
+
+            /* 時間浮水印縮小 */
+            .time-watermark {
+                font-size: 0.9em;
+                padding: 8px 12px;
+            }
+
+            /* 熱力圖提示框調整 */
+            .heatmap-tooltip {
+                font-size: 0.85em;
+                min-width: 150px;
+                padding: 10px 12px;
+            }
+
+            /* 模態對話框調整 */
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                max-height: 90vh;
+            }
+
+            .modal-header {
+                font-size: 1.1em;
+            }
+
+            /* 按鈕文字調整 */
+            button {
+                font-size: 0.95em;
+                padding: 10px;
+            }
+
+            /* 輸入框調整 */
+            input[type="datetime-local"],
+            input[type="number"],
+            select {
+                font-size: 0.9em;
+                padding: 8px;
+            }
+
+            /* 區域管理按鈕網格 */
+            .section > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* 區域項目數據改為雙欄 */
+            .region-item-data {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            /* 時間軸時間顯示 */
+            .timeline-time {
+                font-size: 1em;
+            }
+
+            .timeline-progress-text {
+                font-size: 0.85em;
+            }
+
+            /* 統計項目調整 */
+            .stat-item {
+                font-size: 0.9em;
+            }
+
+            /* 滑桿容器調整 */
+            .range-slider-container {
+                height: 35px;
+            }
+
+            .range-slider-values {
+                flex-direction: column;
+                gap: 5px;
+                font-size: 0.8em;
+            }
+        }
+
+        /* 更小的手機螢幕 */
+        @media screen and (max-width: 480px) {
+            h1 {
+                font-size: 1.1em;
+            }
+
+            .subtitle {
+                font-size: 0.85em;
+            }
+
+            .section-title {
+                font-size: 1em;
+            }
+
+            .timeline-bar-container button {
+                padding: 6px 10px !important;
+                font-size: 0.85em !important;
+            }
+
+            .ranking-panel {
+                width: 95%;
+                max-width: none;
+            }
+
+            .time-watermark {
+                font-size: 0.8em;
+                padding: 6px 10px;
+            }
+
+            .modal-content {
+                padding: 15px;
+            }
+
+            /* 快速設定標籤文字縮小 */
+            .quick-control-label {
+                font-size: 0.8em;
+            }
+
+            .quick-control-input {
+                font-size: 0.85em;
+                padding: 5px 8px;
+            }
+
+            /* 區域項目改為單欄 */
+            .region-item-data {
+                grid-template-columns: 1fr !important;
+            }
+        }
     </style>
 </head>
 <body>
